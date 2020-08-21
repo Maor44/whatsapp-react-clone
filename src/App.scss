@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,900;1,400&display=swap');
 
 :root {
-  font-size: 10px;
+  font-size: 13px;
   font-family: 'Roboto', sans-serif;
 }
 
@@ -15,6 +15,11 @@ button {
   font-family: 'Roboto', sans-serif;
 }
 
+a {
+  text-decoration: none;
+  color: #333;
+}
+
 .app {
   height: 100vh;
   background: #dadbd3;
@@ -22,7 +27,8 @@ button {
   place-items: center;
   &__body {
     display: flex;
-    width: 90vw;
+    width: 100vw;
+    max-width: 75rem;
     height: 90vh;
     background: #ededed;
     box-shadow: -1px 4px 20px -6px rgba(0, 0, 0, 0.4);

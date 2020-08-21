@@ -1,25 +1,59 @@
-import React, {useEffect, useState} from 'react';
+import React, {useContext, useEffect, useRef, useState} from 'react';
 import './chat.scss';
 import {Avatar} from "@material-ui/core";
 import IconButton from "@material-ui/core/IconButton";
 import {AttachFile, InsertEmoticon, Mic, MoreVert, SearchOutlined} from "@material-ui/icons";
+import {useParams} from 'react-router-dom';
+import db, {firebase} from "../../firebase/firebase";
+import {UserContext} from "../../context/user-context/user-context";
+import {scrollToBottom} from "../../helpers/helpers";
 
 const Chat = () => {
+    const {user} = useContext(UserContext)
     const [seed, setSeed] = useState(0);
     const [message, setMessage] = useState('');
+    const [roomName, setRoomName] = useState('');
+    const [messages, setMessages] = useState([]);
+    const {roomId} = useParams()
+    let chatBodyRef = useRef(null);
 
     useEffect(() => {
+        scrollToBottom(chatBodyRef);
+    }, [messages])
 
-        setSeed(Math.floor(Math.random() * 5000))
+    useEffect(() => {
+        if (roomId) {
+            setSeed(Math.floor(Math.random() * 5000))
 
-    }, [])
+            db.collection('rooms').doc(roomId).onSnapshot(snapshot => (
+                setRoomName(snapshot.data().name)
+            ))
 
-    const handleSendMessage = (e) => {
+            db.collection('rooms').doc(roomId).collection('messages').orderBy('timestamp', "asc").onSnapshot(snapshot => (
+                setMessages(snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    data: doc.data()
+                })))
+            ))
+        }
+    }, [roomId])
+
+    const handleSendMessage = async (e) => {
         e.preventDefault();
 
-        console.log(message);
+        try {
+            await db.collection('rooms').doc(roomId).collection('messages').add({
+                author: user.displayName,
+                body: message,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            })
 
-        setMessage('')
+            setMessage('')
+
+        } catch (e) {
+            console.error(e)
+        }
+
     }
 
     return (
@@ -29,46 +63,47 @@ const Chat = () => {
                 <Avatar src={`https://avatars.dicebear.com/api/human/${seed}.svg`}/>
 
                 <div className="chat__header__info">
-                    <h3 className="chat__header__title">Room Name</h3>
-                    <p className="chat__header__text">last seen...</p>
+                    <h3 className="chat__header__title">{roomName}</h3>
+                    <p className="chat__header__text">{messages.length > 0 ? `last seen ${`${new Date(messages[messages?.length - 1].data?.timestamp?.toDate()).getHours()}:${new Date(messages[messages?.length - 1].data?.timestamp?.toDate()).getMinutes()}`}` : ''}</p>
                 </div>
 
                 <div className="chat__header__right">
                     <IconButton>
-                        <SearchOutlined fontSize={'large'}/>
+                        <SearchOutlined/>
                     </IconButton>
                     <IconButton>
-                        <AttachFile fontSize={'large'}/>
+                        <AttachFile/>
                     </IconButton>
                     <IconButton>
-                        <MoreVert fontSize={'large'}/>
+                        <MoreVert/>
                     </IconButton>
                 </div>
             </div>
 
-            <div className="chat__body">
+            <div className="chat__body" ref={ref => chatBodyRef = ref}>
+                {messages.map(message => {
+                    return (
+                        <p key={message.id}
+                           className={`chat__message ${user.displayName === message.data.author && 'chat__message--receiver'}`}>
+                            <span className="chat__message__name">{message.data.author}</span>
+                            {message.data.body}
+                            <span
+                                className="chat__message__time">{`${new Date(message.data?.timestamp?.toDate()).getHours()}:${new Date(message.data?.timestamp?.toDate()).getMinutes()}`}</span>
+                        </p>
 
-                <p className={`chat__message ${true && 'chat__message--receiver'}`}>
-                    <span className="chat__message__name">Maor Bar</span>
-                    test message
-                    <span className="chat__message__time">3:43 PM</span>
-                </p>
-
-                <p className={`chat__message ${false && 'chat__message--receiver'}`}>
-                    <span className="chat__message__name">Maor Bar</span>
-                    test message
-                    <span className="chat__message__time">3:43 PM</span>
-                </p>
-
+                    )
+                })}
             </div>
 
+
             <div className="chat__footer">
-                <InsertEmoticon fontSize={'large'} className="chat__footer__icon" />
+                <InsertEmoticon className="chat__footer__icon"/>
                 <form className="chat__footer__form">
-                    <input value={message} onChange={(e) => setMessage(e.target.value)} type="text" placeholder="Type a message" className="chat__footer__input"/>
+                    <input value={message} onChange={(e) => setMessage(e.target.value)} type="text"
+                           placeholder="Type a message" className="chat__footer__input"/>
                     <button onClick={handleSendMessage} type="submit" className="chat__footer__button"/>
                 </form>
-                <Mic fontSize={'large'} className="chat__footer__icon" />
+                <Mic className="chat__footer__icon"/>
             </div>
         </div>
     );
